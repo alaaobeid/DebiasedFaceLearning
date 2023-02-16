@@ -75,13 +75,13 @@ class TripletFaceDataset(Dataset):
             face_classes[label].append(self.df_dict_id[idx])
             skin_classes[label].append(self.df_dict_skin[idx])
 
-        return face_classes
+        return face_classes, skin_classes
 
     def generate_triplets(self):
         triplets = []
         classes = self.df['class'].unique()
-        skin = self.df['Skin']
-        face_classes = self.make_dictionary_for_face_class()
+        skin = self.df['Skin'].unique()
+        face_classes, skin_classes = self.make_dictionary_for_face_class()
 
         print("\nGenerating {} triplets ...".format(self.num_triplets))
         num_training_iterations_per_process = self.num_triplets / self.triplet_batch_size
@@ -109,7 +109,10 @@ class TripletFaceDataset(Dataset):
 
                 while len(face_classes[pos_class]) < 2:
                     pos_class = np.random.choice(classes_per_batch)
-
+		
+		while skin_classes[neg_class] != skin_classes[pos_class]:
+		    neg_class = np.random.choice(classes_per_batch)
+                
                 while pos_class == neg_class:
                     neg_class = np.random.choice(classes_per_batch)
 
