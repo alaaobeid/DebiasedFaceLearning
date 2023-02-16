@@ -52,6 +52,7 @@ class TripletFaceDataset(Dataset):
         df_dict = self.df.to_dict()
         self.df_dict_class_name = df_dict["name"]
         self.df_dict_id = df_dict["id"]
+        self.df_dict_skin = df_dict["Skin"]
         self.df_dict_class_reversed = {value: key for (key, value) in df_dict["class"].items()}
 
         if training_triplets_path is None:
@@ -65,17 +66,21 @@ class TripletFaceDataset(Dataset):
             face_classes = {'class0': [class0_id0, ...], 'class1': [class1_id0, ...], ...}
         """
         face_classes = dict()
+        skin_classes = dict()
         for idx, label in enumerate(self.df['class']):
             if label not in face_classes:
                 face_classes[label] = []
+                skin_classes[label] = []
             # Instead of utilizing the computationally intensive pandas.dataframe.iloc() operation
             face_classes[label].append(self.df_dict_id[idx])
+            skin_classes[label].append(self.df_dict_skin[idx])
 
         return face_classes
 
     def generate_triplets(self):
         triplets = []
         classes = self.df['class'].unique()
+        skin = self.df['Skin']
         face_classes = self.make_dictionary_for_face_class()
 
         print("\nGenerating {} triplets ...".format(self.num_triplets))
