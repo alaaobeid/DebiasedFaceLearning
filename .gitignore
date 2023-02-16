@@ -2,3 +2,17 @@ model_training_checkpoints/
 logs/
 plots/
 pretrained_model_stats_safe_to_delete/
+datasets/lfw_224/
+datasets/.~lock.df.csv#
+datasets/.~lock.lfw.csv#
+datasets/__pycache__/
+losses/__pycache__/
+models/__pycache__/
+__pycache__/
+datasets/cc_part1and2_cropped/
+datasets/df.csv
+datasets/glint360k.csv
+datasets/lfw.csv
+datasets/lfw_224.zip
+20180402-114759-vggface2.pt
+models/model_resnet34_triplet.pt

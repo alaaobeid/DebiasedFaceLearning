@@ -13,6 +13,7 @@ from validate_on_LFW import evaluate_lfw
 from plot import plot_roc_lfw, plot_accuracy_lfw
 from tqdm import tqdm
 from models.inceptionresnetv2 import InceptionResnetV2Triplet
+from models.inceptionresnetv1 import InceptionResnetV1Triplet
 from models.mobilenetv2 import MobileNetV2Triplet
 from models.resnet import (
     Resnet18Triplet,
@@ -39,8 +40,8 @@ parser.add_argument('--epochs', default=150, type=int,
 parser.add_argument('--iterations_per_epoch', default=5000, type=int,
                     help="Number of training iterations per epoch (default: 5000)"
                     )
-parser.add_argument('--model_architecture', type=str, default="resnet34", choices=["resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "inceptionresnetv2", "mobilenetv2"],
-                    help="The required model architecture for training: ('resnet18','resnet34', 'resnet50', 'resnet101', 'resnet152', 'inceptionresnetv2', 'mobilenetv2'), (default: 'resnet34')"
+parser.add_argument('--model_architecture', type=str, default="resnet34", choices=["resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "inceptionresnetv2", "mobilenetv2","inceptionresnetv1"],
+                    help="The required model architecture for training: ('resnet18','resnet34', 'resnet50', 'resnet101', 'resnet152', 'inceptionresnetv2', 'mobilenetv2', 'inceptionresnetv1'), (default: 'resnet34')"
                     )
 parser.add_argument('--pretrained', default=False, type=bool,
                     help="Download a model pretrained on the ImageNet dataset (Default: False)"
@@ -120,6 +121,10 @@ def set_model_architecture(model_architecture, pretrained, embedding_dimension):
             embedding_dimension=embedding_dimension,
             pretrained=pretrained
         )
+    elif model_architecture == "inceptionresnetv1":
+        model = InceptionResnetV1Triplet(
+            embedding_dimension=embedding_dimension,
+            pretrained=pretrained)
     print("Using {} model architecture.".format(model_architecture))
 
     return model
