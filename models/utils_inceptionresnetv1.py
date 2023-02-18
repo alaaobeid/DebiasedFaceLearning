@@ -197,7 +197,7 @@ class inceptionresnetv1(nn.Module):
             initialized. (default: {None})
         dropout_prob {float} -- Dropout probability. (default: {0.6})
     """
-    def __init__(self, pretrained=None, classify=False, num_classes=None, dropout_prob=0.6, device=None):
+    def __init__(self, pretrained=None, classify=False, num_classes=None, dropout_prob=0.5, device=None):
         super().__init__()
 
         # Set simple attributes
@@ -256,7 +256,7 @@ class inceptionresnetv1(nn.Module):
         self.last_bn = nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
 
         if pretrained is not None:
-            self.logits = nn.Linear(512, tmp_classes)
+            self.logits = nn.Linear(512, 8631)
             load_weights(self, pretrained)
 
         if self.classify and self.num_classes is not None:

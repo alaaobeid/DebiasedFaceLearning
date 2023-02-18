@@ -21,5 +21,17 @@ models/model_resnet34_triplet.pt
 models/download.py
 datasets/casual_conv/
 datasets/cc12.csv
+.ipynb_checkpoints/
+Validation notebook (LFW only).ipynb
+datasets/glint360k_v0.0.csv
+datasets/generated_triplets/
+Untitled.ipynb
+datasets/.~lock.glint360k.csv#
+datasets/CC_pairs.txt
+datasets/clean data and such.zip
+datasets/clean data and such/
+datasets/replaced/
+model_pretrained_triplet_epoch_0.pt
+run_generate.sh
 
 >>>>>>> 7b8a50d... added skin colour labels to the TripletFaceDataset training dataset

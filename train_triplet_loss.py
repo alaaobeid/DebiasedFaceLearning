@@ -7,6 +7,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.nn.modules.distance import PairwiseDistance
 from datasets.LFWDataset import LFWDataset
+from datasets.CCDataset import CCDataset
 from losses.triplet_loss import TripletLoss
 from datasets.TripletLossDataset import TripletFaceDataset
 from validate_on_LFW import evaluate_lfw
@@ -30,6 +31,9 @@ parser.add_argument('--dataroot', '-d', type=str, required=True,
                     )
 parser.add_argument('--lfw', type=str, required=True,
                     help="(REQUIRED) Absolute path to the labeled faces in the wild dataset folder"
+                    )
+parser.add_argument('--cc', type=str, required=True,
+                    help="(REQUIRED) Absolute path to the cc dataset folder"
                     )
 parser.add_argument('--training_dataset_csv_path', type=str, default='datasets/glint360k.csv',
                     help="Path to the csv file containing the image paths of the training dataset"
@@ -56,6 +60,9 @@ parser.add_argument('--batch_size', default=544, type=int,
                     help="Batch size (default: 544)"
                     )
 parser.add_argument('--lfw_batch_size', default=200, type=int,
+                    help="Batch size for LFW dataset (6000 pairs) (default: 200)"
+                    )
+parser.add_argument('--cc_batch_size', default=200, type=int,
                     help="Batch size for LFW dataset (6000 pairs) (default: 200)"
                     )
 parser.add_argument('--resume_path', default='',  type=str,
@@ -274,6 +281,88 @@ def validate_lfw(model, lfw_dataloader, model_architecture, epoch):
     return best_distances
 
 
+def validate_cc(model, cc_dataloader, model_architecture, epoch):
+    model.eval()
+    with torch.no_grad():
+        l2_distance = PairwiseDistance(p=2)
+        distances, labels = [], []
+
+        print("Validating on CC! ...")
+        progress_bar = enumerate(tqdm(cc_dataloader))
+
+        for batch_index, (data_a, data_b, label) in progress_bar:
+            data_a = data_a.cuda()
+            data_b = data_b.cuda()
+
+            output_a, output_b = model(data_a), model(data_b)
+            distance = l2_distance.forward(output_a, output_b)  # Euclidean distance
+
+            distances.append(distance.cpu().detach().numpy())
+            labels.append(label.cpu().detach().numpy())
+
+        labels = np.array([sublabel for label in labels for sublabel in label])
+        distances = np.array([subdist for distance in distances for subdist in distance])
+
+        true_positive_rate, false_positive_rate, precision, recall, accuracy, roc_auc, best_distances, \
+        tar, far = evaluate_lfw(
+            distances=distances,
+            labels=labels,
+            far_target=1e-3
+        )
+        # Print statistics and add to log
+        print("Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
+              "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f}".format(
+                    np.mean(accuracy),
+                    np.std(accuracy),
+                    np.mean(precision),
+                    np.std(precision),
+                    np.mean(recall),
+                    np.std(recall),
+                    roc_auc,
+                    np.mean(best_distances),
+                    np.std(best_distances),
+                    np.mean(tar),
+                    np.std(tar),
+                    np.mean(far)
+                )
+        )
+        with open('logs/cc_{}_log_triplet.txt'.format(model_architecture), 'a') as f:
+            val_list = [
+                epoch,
+                np.mean(accuracy),
+                np.std(accuracy),
+                np.mean(precision),
+                np.std(precision),
+                np.mean(recall),
+                np.std(recall),
+                roc_auc,
+                np.mean(best_distances),
+                np.std(best_distances),
+                np.mean(tar)
+            ]
+            log = '\t'.join(str(value) for value in val_list)
+            f.writelines(log + '\n')
+
+    try:
+        # Plot cc curve
+        plot_roc_lfw(
+            false_positive_rate=false_positive_rate,
+            true_positive_rate=true_positive_rate,
+            figure_name="plots/roc_plots/roc_cc_{}_epoch_{}_triplet.png".format(model_architecture, epoch)
+        )
+        # Plot cc accuracies plot
+        plot_accuracy_lfw(
+            log_file="logs/cc_{}_log_triplet.txt".format(model_architecture),
+            epochs=epoch,
+            figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet.png".format(model_architecture, epoch)
+        )
+    except Exception as e:
+        print(e)
+
+    return best_distances
+
+
 def forward_pass(imgs, model, batch_size):
     imgs = imgs.cuda()
     embeddings = model(imgs)
@@ -289,6 +378,7 @@ def forward_pass(imgs, model, batch_size):
 def main():
     dataroot = args.dataroot
     lfw_dataroot = args.lfw
+    cc_dataroot = args.cc
     training_dataset_csv_path = args.training_dataset_csv_path
     epochs = args.epochs
     iterations_per_epoch = args.iterations_per_epoch
@@ -298,6 +388,7 @@ def main():
     num_human_identities_per_batch = args.num_human_identities_per_batch
     batch_size = args.batch_size
     lfw_batch_size = args.lfw_batch_size
+    cc_batch_size = args.lfw_batch_size
     resume_path = args.resume_path
     num_workers = args.num_workers
     optimizer = args.optimizer
@@ -317,15 +408,26 @@ def main():
     #   Normalize(mean=[0.6071, 0.4609, 0.3944], std=[0.2457, 0.2175, 0.2129]) according to the calculated glint360k
     #   dataset with tightly-cropped faces dataset RGB channels' mean and std values by
     #   calculate_glint360k_rgb_mean_std.py in 'datasets' folder.
+    
+    def fixed_image_standardization(image_tensor):
+        processed_tensor = (image_tensor - 127.5) / 128.0
+        return processed_tensor
+    
+    # data_transforms = transforms.Compose([
+    #     transforms.Resize(size=image_size),
+    #     transforms.RandomHorizontalFlip(),
+    #     transforms.RandomRotation(degrees=5),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize(
+    #         mean=[0.3727, 0.2802, 0.2660],
+    #         std=[0.2096, 0.1790, 0.1753]
+    #     )
+    # ])
+    
     data_transforms = transforms.Compose([
-        transforms.Resize(size=image_size),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomRotation(degrees=5),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=[0.6071, 0.4609, 0.3944],
-            std=[0.2457, 0.2175, 0.2129]
-        )
+    np.float32,
+    transforms.ToTensor(),
+    fixed_image_standardization
     ])
 
     lfw_transforms = transforms.Compose([
@@ -342,6 +444,17 @@ def main():
             dir=lfw_dataroot,
             pairs_path='datasets/LFW_pairs.txt',
             transform=lfw_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    cc_dataloader = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/CC_pairs.txt',
+            transform=data_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -371,7 +484,14 @@ def main():
             print("Loading checkpoint {} ...".format(resume_path))
             checkpoint = torch.load(resume_path)
             start_epoch = checkpoint['epoch'] + 1
-            optimizer_model.load_state_dict(checkpoint['optimizer_model_state_dict'])
+            optimizer_model = optim.Adam(
+            params=model.parameters(),
+            lr=learning_rate,
+            betas=(0.9, 0.999),
+            eps=0.1,
+            amsgrad=False,
+            weight_decay=1e-5
+        )
 
             # In order to load state dict for optimizers correctly, model has to be loaded to gpu first
             if flag_train_multi_gpu:
@@ -495,6 +615,13 @@ def main():
         best_distances = validate_lfw(
             model=model,
             lfw_dataloader=lfw_dataloader,
+            model_architecture=model_architecture,
+            epoch=epoch
+        )
+        
+        best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader,
             model_architecture=model_architecture,
             epoch=epoch
         )

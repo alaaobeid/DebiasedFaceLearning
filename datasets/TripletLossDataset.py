@@ -109,9 +109,9 @@ class TripletFaceDataset(Dataset):
 
                 while len(face_classes[pos_class]) < 2:
                     pos_class = np.random.choice(classes_per_batch)
-		
-		while skin_classes[neg_class] != skin_classes[pos_class]:
-		    neg_class = np.random.choice(classes_per_batch)
+                
+                while skin_classes[neg_class] != skin_classes[pos_class]:
+                    neg_class = np.random.choice(classes_per_batch)
                 
                 while pos_class == neg_class:
                     neg_class = np.random.choice(classes_per_batch)
