@@ -425,6 +425,8 @@ def main():
     # ])
     
     data_transforms = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(degrees=5),
     np.float32,
     transforms.ToTensor(),
     fixed_image_standardization

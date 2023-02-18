@@ -14,7 +14,7 @@ import torch
 from tqdm import tqdm
 from PIL import Image
 from torch.utils.data import Dataset
-
+from collections import Counter
 
 class TripletFaceDataset(Dataset):
     def __init__(self, root_dir, training_dataset_csv_path, num_triplets, epoch, num_human_identities_per_batch=32,
@@ -100,8 +100,19 @@ class TripletFaceDataset(Dataset):
                       - At least, two images needed for anchor and positive images in pos_class
                       - Negative image should have different class as anchor and positive images by definition
             """
+            
             classes_per_batch = np.random.choice(classes, size=self.num_human_identities_per_batch, replace=False)
-
+            
+            skin_per_batch = []
+            
+            for class_skin in classes_per_batch:
+                skin_per_batch.append(skin_classes[class_skin][0])
+            while Counter(skin_per_batch)[1] < 2 or Counter(skin_per_batch)[2] < 2 or Counter(skin_per_batch)[3] < 2 or Counter(skin_per_batch)[4] < 2 or Counter(skin_per_batch)[5] < 2 or Counter(skin_per_batch)[6] < 2:
+                classes_per_batch = np.random.choice(classes, size=self.num_human_identities_per_batch, replace=False)
+                skin_per_batch = []
+                for class_skin in classes_per_batch:
+                    skin_per_batch.append(skin_classes[class_skin][0])
+            #print('classes_per_batch',classes_per_batch,'skin_per_batch',Counter(skin_per_batch))
             for triplet in range(self.triplet_batch_size):
 
                 pos_class = np.random.choice(classes_per_batch)
