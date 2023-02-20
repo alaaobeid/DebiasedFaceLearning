@@ -1,3 +1,7 @@
+# Dataset and pretrained model
+
+https://drive.google.com/drive/folders/18YjTVs05Nq3cEWYxWZk9lt9O0PjY0s0e?usp=sharing
+
 # facenet-pytorch-glint360k
 
 
