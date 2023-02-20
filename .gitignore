@@ -16,9 +16,7 @@ datasets/lfw.csv
 datasets/lfw_224.zip
 20180402-114759-vggface2.pt
 models/model_resnet34_triplet.pt
-<<<<<<< HEAD
-=======
-models/download.py
+
 datasets/casual_conv/
 datasets/cc12.csv
 .ipynb_checkpoints/
@@ -33,5 +31,3 @@ datasets/clean data and such/
 datasets/replaced/
 model_pretrained_triplet_epoch_0.pt
 run_generate.sh
-
->>>>>>> 7b8a50d... added skin colour labels to the TripletFaceDataset training dataset
