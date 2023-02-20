@@ -1,3 +1,7 @@
+# Run experiment example
+
+python train_triplet_loss.py --dataroot './datasets/casual_conv' --lfw './datasets/lfw_224' --cc './datasets/casual_conv' --training_dataset_csv_path './datasets/cc_train.csv' --epochs 150 --iterations_per_epoch 5000 --model_architecture 'inceptionresnetv1' --pretrained 'vggface2' --embedding_dimension 512 --num_human_identities_per_batch 32 --batch_size 500 --lfw_batch_size 200 --cc_batch_size 200 --resume_path './model_pretrained_triplet_epoch_0.pt' --num_workers 2 --optimizer 'adam' --learning_rate 0.000001 --margin 0.2 --image_size 160 --use_semihard_negatives True --training_triplets_path ./datasets/generated_triplets/epoch_73_training_triplets_2500000_identities_32_batch_500.npy
+
 # Dataset and pretrained model
 
 https://drive.google.com/drive/folders/18YjTVs05Nq3cEWYxWZk9lt9O0PjY0s0e?usp=sharing
