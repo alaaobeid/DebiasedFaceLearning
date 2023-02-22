@@ -1,4 +1,6 @@
 model_training_checkpoints/
+logs/
+plots/
 pretrained_model_stats_safe_to_delete/
 datasets/lfw_224/
 datasets/.~lock.df.csv#
