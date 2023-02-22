@@ -3,6 +3,7 @@ import argparse
 import os
 import torch
 import torch.nn as nn
+import time
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.nn.modules.distance import PairwiseDistance
@@ -281,7 +282,7 @@ def validate_lfw(model, lfw_dataloader, model_architecture, epoch):
     return best_distances
 
 
-def validate_cc(model, cc_dataloader, model_architecture, epoch):
+def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
     model.eval()
     with torch.no_grad():
         l2_distance = PairwiseDistance(p=2)
@@ -309,6 +310,11 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch):
             labels=labels,
             far_target=1e-3
         )
+	
+	tpr_1e3 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-03))]
+	fpr_95 = false_positive_rate[np.argmin(np.abs(true_positive_rate - 0.95))]
+	
+ 
         # Print statistics and add to log
         print("Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
               "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
@@ -327,40 +333,51 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch):
                     np.mean(far)
                 )
         )
-        with open('logs/cc_{}_log_triplet.txt'.format(model_architecture), 'a') as f:
-            val_list = [
-                epoch,
-                np.mean(accuracy),
-                np.std(accuracy),
-                np.mean(precision),
-                np.std(precision),
-                np.mean(recall),
-                np.std(recall),
-                roc_auc,
-                np.mean(best_distances),
-                np.std(best_distances),
-                np.mean(tar)
-            ]
-            log = '\t'.join(str(value) for value in val_list)
-            f.writelines(log + '\n')
+	
+
+        print('fpr at tpr 0.95: {},  tpr at fpr 0.001: {}'.format(fpr_95,tpr_1e3))
+
+	with open('logs/cc_tpr_fpr_{}_{}.txt'.format(logfname, ts), 'a') as f:
+            f.writelines('Epoch {}: fpr at tpr 0.95: {},  tpr at fpr 0.001: {}'.format(epoch,fpr_95,tpr_1e3)
+	
+        with open('logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts), 'a') as f:
+
+            f.writelines("Epoch {}: Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
+              "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f}".format(
+                    epoch,
+                    np.mean(accuracy),
+                    np.std(accuracy),
+                    np.mean(precision),
+                    np.std(precision),
+                    np.mean(recall),
+                    np.std(recall),
+                    roc_auc,
+                    np.mean(best_distances),
+                    np.std(best_distances),
+                    np.mean(tar),
+                    np.std(tar),
+                    np.mean(far)
+                ) + '\n'
+            )
 
     try:
         # Plot cc curve
         plot_roc_lfw(
             false_positive_rate=false_positive_rate,
             true_positive_rate=true_positive_rate,
-            figure_name="plots/roc_plots/roc_cc_{}_epoch_{}_triplet.png".format(model_architecture, epoch)
+            figure_name="plots/roc_plots/roc_cc_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
         )
         # Plot cc accuracies plot
         plot_accuracy_lfw(
-            log_file="logs/cc_{}_log_triplet.txt".format(model_architecture),
+            log_file="logs/cc_{}_log_triplet_{}.txt".format(model_architecture, logfname),
             epochs=epoch,
-            figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet.png".format(model_architecture, epoch)
+            figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
         )
     except Exception as e:
         print(e)
 
-    return best_distances
+    return tpr_1e3,fpr_95,best_distances
 
 
 def forward_pass(imgs, model, batch_size):
@@ -398,6 +415,7 @@ def main():
     use_semihard_negatives = args.use_semihard_negatives
     training_triplets_path = args.training_triplets_path
     flag_training_triplets_path = False
+    ts = time.time()
     start_epoch = 0
 
     if training_triplets_path is not None:
@@ -462,6 +480,14 @@ def main():
         num_workers=num_workers,
         shuffle=False
     )
+    
+    def ID(x):
+        for i in range(len(x)):
+            if '/' == x[i]:
+                idx = i
+        return idx+1
+
+    logfname = cc_dataloader.dataset.pairs_path[ID(cc_dataloader):]
 
     # Instantiate model
     model = set_model_architecture(
@@ -621,11 +647,13 @@ def main():
             epoch=epoch
         )
         
-        best_distances = validate_cc(
+        tpr_1e3, fpr_95, best_distances = validate_cc(
             model=model,
             cc_dataloader=cc_dataloader,
             model_architecture=model_architecture,
-            epoch=epoch
+            epoch=epoch,
+            logfname=logfname,
+            ts=ts
         )
 
         # Save model checkpoint
