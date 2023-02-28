@@ -135,8 +135,8 @@ class TripletFaceDataset(Dataset):
             
             for class_skin in classes_per_batch:
                   skin_per_batch.append(skin_classes[class_skin][0])
-            print(skin_per_batch)
-            print(len(skin_per_batch))
+            # print(skin_per_batch)
+            # print(len(skin_per_batch))
             # print(type(classes_per_batch))
             # triplets.append(classes_per_batch)
             # print(triplets)

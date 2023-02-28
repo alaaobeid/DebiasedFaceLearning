@@ -480,7 +480,7 @@ def main():
     cc_dataloader_12 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_1.txt',
+            pairs_path='datasets/VAL_pairs_12.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -491,7 +491,7 @@ def main():
     cc_dataloader_34 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_3.txt',
+            pairs_path='datasets/VAL_pairs_34.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -502,7 +502,7 @@ def main():
     cc_dataloader_56 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_5.txt',
+            pairs_path='datasets/VAL_pairs_56.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -635,7 +635,7 @@ def main():
 
         # Training pass
         model.train()
-        progress_bar = tqdm(total=5000)
+        progress_bar = tqdm(total=iterations_per_epoch)
 
         for batch_sample in train_dataloader:
 
