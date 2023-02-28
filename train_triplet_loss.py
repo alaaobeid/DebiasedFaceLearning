@@ -304,15 +304,20 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
         labels = np.array([sublabel for label in labels for sublabel in label])
         distances = np.array([subdist for distance in distances for subdist in distance])
 
-        true_positive_rate, false_positive_rate, precision, recall, accuracy, roc_auc, best_distances, \
+        true_positive_rate, false_positive_rate, false_negative_rate, precision, recall, accuracy, roc_auc, best_distances, \
         tar, far = evaluate_lfw(
             distances=distances,
             labels=labels,
             far_target=1e-3
         )
-	
-	tpr_1e3 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-03))]
-	fpr_95 = false_positive_rate[np.argmin(np.abs(true_positive_rate - 0.95))]
+        tpr_1e3 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-03))]
+        tpr_1e4 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-04))]
+        fpr_95 = false_positive_rate[np.argmin(np.abs(true_positive_rate - 0.95))]
+        fnr = false_negative_rate
+        fpr = false_positive_rate
+        sub = np.abs(fnr - fpr)
+        h = np.min(sub[np.nonzero(sub)])
+        h = np.where(sub == h)[0][0]
 	
  
         # Print statistics and add to log
@@ -335,16 +340,16 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
         )
 	
 
-        print('fpr at tpr 0.95: {},  tpr at fpr 0.001: {}'.format(fpr_95,tpr_1e3))
-
-	with open('logs/cc_tpr_fpr_{}_{}.txt'.format(logfname, ts), 'a') as f:
-            f.writelines('Epoch {}: fpr at tpr 0.95: {},  tpr at fpr 0.001: {}'.format(epoch,fpr_95,tpr_1e3)
+        print('fpr at tpr 0.95: {},  tpr at fpr 0.001: {}, tpr at fpr 0.0001: {}'.format(fpr_95,tpr_1e3,tpr_1e4))
+        print('At FNR = FPR: FNR = {}, FPR = {}'.format(fnr[h],fpr[h]))
+# with open('logs/cc_tpr_fpr_{}_{}.txt'.format(logfname, ts), 'a') as f:
+#             f.writelines(''.format()
 	
         with open('logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts), 'a') as f:
 
             f.writelines("Epoch {}: Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
               "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
-              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f}".format(
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f} \n fpr at tpr 0.95: {},  tpr at fpr 0.001: {} ".format(
                     epoch,
                     np.mean(accuracy),
                     np.std(accuracy),
@@ -357,7 +362,9 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
                     np.std(best_distances),
                     np.mean(tar),
                     np.std(tar),
-                    np.mean(far)
+                    np.mean(far),
+                    fpr_95,
+                    tpr_1e3
                 ) + '\n'
             )
 
@@ -370,14 +377,14 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
         )
         # Plot cc accuracies plot
         plot_accuracy_lfw(
-            log_file="logs/cc_{}_log_triplet_{}.txt".format(model_architecture, logfname),
+            log_file='logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts),
             epochs=epoch,
             figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
         )
     except Exception as e:
         print(e)
 
-    return tpr_1e3,fpr_95,best_distances
+    return tpr_1e3,tpr_1e4,fpr_95,best_distances
 
 
 def forward_pass(imgs, model, batch_size):
@@ -647,7 +654,7 @@ def main():
             epoch=epoch
         )
         
-        tpr_1e3, fpr_95, best_distances = validate_cc(
+        tpr_1e3_12, tpr_1e4_12, fpr_95_12, best_distances = validate_cc(
             model=model,
             cc_dataloader=cc_dataloader,
             model_architecture=model_architecture,
