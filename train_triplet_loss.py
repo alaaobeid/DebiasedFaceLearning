@@ -222,7 +222,7 @@ def validate_lfw(model, lfw_dataloader, model_architecture, epoch):
         labels = np.array([sublabel for label in labels for sublabel in label])
         distances = np.array([subdist for distance in distances for subdist in distance])
 
-        true_positive_rate, false_positive_rate, precision, recall, accuracy, roc_auc, best_distances, \
+        true_positive_rate, false_positive_rate, false_negative_rate, precision, recall, accuracy, roc_auc, best_distances, \
         tar, far = evaluate_lfw(
             distances=distances,
             labels=labels,
@@ -494,7 +494,8 @@ def main():
                 idx = i
         return idx+1
 
-    logfname = cc_dataloader.dataset.pairs_path[ID(cc_dataloader):]
+    logfname = cc_dataloader.dataset.pairs_path[ID(cc_dataloader.dataset.pairs_path):][:-4]
+
 
     # Instantiate model
     model = set_model_architecture(

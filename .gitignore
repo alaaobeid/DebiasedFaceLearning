@@ -1,4 +1,4 @@
-model_training_checkpoints/
+
 logs/
 plots/
 pretrained_model_stats_safe_to_delete/
@@ -31,3 +31,16 @@ datasets/clean data and such/
 datasets/replaced/
 model_pretrained_triplet_epoch_0.pt
 run_generate.sh
+
+datasets/VAL_pairs_1.txt
+datasets/VAL_pairs_12.txt
+datasets/VAL_pairs_2.txt
+datasets/VAL_pairs_3.txt
+datasets/VAL_pairs_34.txt
+datasets/VAL_pairs_4.txt
+datasets/VAL_pairs_5.txt
+datasets/VAL_pairs_6.txt
+datasets/cc.zip
+datasets/cc_train.csv
+datasets/datasets.zip
+datasets/lfw.zip
