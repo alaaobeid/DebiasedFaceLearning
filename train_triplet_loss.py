@@ -477,10 +477,32 @@ def main():
         shuffle=False
     )
     
-    cc_dataloader = torch.utils.data.DataLoader(
+    cc_dataloader_12 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/CC_pairs.txt',
+            pairs_path='datasets/VAL_pairs_1.txt',
+            transform=data_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+
+    cc_dataloader_34 = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/VAL_pairs_3.txt',
+            transform=data_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+
+    cc_dataloader_56 = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/VAL_pairs_5.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -494,7 +516,11 @@ def main():
                 idx = i
         return idx+1
 
-    logfname = cc_dataloader.dataset.pairs_path[ID(cc_dataloader.dataset.pairs_path):][:-4]
+    logfname_12 = cc_dataloader_12.dataset.pairs_path[ID(cc_dataloader_12.dataset.pairs_path):][:-4]
+
+    logfname_34 = cc_dataloader_34.dataset.pairs_path[ID(cc_dataloader_34.dataset.pairs_path):][:-4]
+
+    logfname_56 = cc_dataloader_56.dataset.pairs_path[ID(cc_dataloader_56.dataset.pairs_path):][:-4]
 
 
     # Instantiate model
@@ -506,6 +532,39 @@ def main():
 
     # Load model to GPU or multiple GPUs if available
     model, flag_train_multi_gpu = set_model_gpu_mode(model)
+
+    tpr_1e3_12, tpr_1e4_12, fpr_95_12, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_12,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_12,
+            ts=ts
+        )
+
+    tpr_1e3_34, tpr_1e4_34, fpr_95_34, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_34,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_34,
+            ts=ts
+        )
+
+    tpr_1e3_56, tpr_1e4_56, fpr_95_56, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_56,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_56,
+            ts=ts
+        )
+    
+    #Calculate skin colour distributions based on fpr at 0.95 tpr values for first epoch
+    
+    fpr_95_total = fpr_95_12 + fpr_95_34 + fpr_95_56
+
+    id_dist = [round((fpr_95_12*32)/fpr_95_total), round((fpr_95_34*32)/fpr_95_total), round((fpr_95_56*32)/fpr_95_total)]
 
     # Set optimizer
     optimizer_model = set_optimizer(
@@ -566,7 +625,8 @@ def main():
                 triplet_batch_size=batch_size,
                 epoch=epoch,
                 training_triplets_path=_training_triplets_path,
-                transform=data_transforms
+                transform=data_transforms,
+                id_dist=id_dist
             ),
             batch_size=batch_size,
             num_workers=num_workers,
@@ -575,9 +635,9 @@ def main():
 
         # Training pass
         model.train()
-        progress_bar = enumerate(tqdm(train_dataloader))
+        progress_bar = tqdm(total=5000)
 
-        for batch_idx, (batch_sample) in progress_bar:
+        for batch_sample in train_dataloader:
 
             # Forward pass - compute embeddings
             anc_imgs = batch_sample['anc_img']
@@ -631,7 +691,9 @@ def main():
             optimizer_model.zero_grad()
             triplet_loss.backward()
             optimizer_model.step()
-
+            progress_bar.update(1)
+            
+        progress_bar.close()
         # Print training statistics for epoch and add to log
         print('Epoch {}:\tNumber of valid training triplets in epoch: {}'.format(
                 epoch,
@@ -656,13 +718,35 @@ def main():
         )
         
         tpr_1e3_12, tpr_1e4_12, fpr_95_12, best_distances = validate_cc(
-            model=model,
-            cc_dataloader=cc_dataloader,
-            model_architecture=model_architecture,
-            epoch=epoch,
-            logfname=logfname,
-            ts=ts
-        )
+                model=model,
+                cc_dataloader=cc_dataloader_12,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_12,
+                ts=ts
+            )
+
+        tpr_1e3_34, tpr_1e4_34, fpr_95_34, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_34,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_34,
+                ts=ts
+            )
+
+        tpr_1e3_56, tpr_1e4_56, fpr_95_56, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_56,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_56,
+                ts=ts
+            )
+
+        fpr_95_total = fpr_95_12 + fpr_95_34 + fpr_95_56
+
+        id_dist = [round((fpr_95_12*32)/fpr_95_total), round((fpr_95_34*32)/fpr_95_total), round((fpr_95_56*32)/fpr_95_total)]
 
         # Save model checkpoint
         state = {

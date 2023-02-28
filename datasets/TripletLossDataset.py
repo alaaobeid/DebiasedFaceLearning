@@ -7,6 +7,11 @@
 """
 
 
+"""
+        TripletLossDataset.py  MODIFIED DATAFRAMES FOR SKIN COLOUR SAMPLING
+"""
+
+
 import os
 import numpy as np
 import pandas as pd
@@ -17,8 +22,7 @@ from torch.utils.data import Dataset
 from collections import Counter
 
 class TripletFaceDataset(Dataset):
-    def __init__(self, root_dir, training_dataset_csv_path, num_triplets, epoch, num_human_identities_per_batch=32,
-                 triplet_batch_size=544, training_triplets_path=None, transform=None):
+    def __init__(self, root_dir, training_dataset_csv_path, num_triplets, epoch, num_human_identities_per_batch=32, triplet_batch_size=544, training_triplets_path=None, transform=None, id_dist=[]):
         """
         Args:
 
@@ -46,7 +50,7 @@ class TripletFaceDataset(Dataset):
         self.triplet_batch_size = triplet_batch_size
         self.epoch = epoch
         self.transform = transform
-
+        self.id_dist = id_dist
         # Modified here to bypass having to use pandas.dataframe.loc for retrieving the class name
         #  and using dataframe.iloc for creating the face_classes dictionary
         df_dict = self.df.to_dict()
@@ -74,14 +78,20 @@ class TripletFaceDataset(Dataset):
             # Instead of utilizing the computationally intensive pandas.dataframe.iloc() operation
             face_classes[label].append(self.df_dict_id[idx])
             skin_classes[label].append(self.df_dict_skin[idx])
-
+        
         return face_classes, skin_classes
 
     def generate_triplets(self):
         triplets = []
         classes = self.df['class'].unique()
+
         skin = self.df['Skin'].unique()
+
+
+        df_classes_skin = self.df[['class','Skin']]
+
         face_classes, skin_classes = self.make_dictionary_for_face_class()
+        
 
         print("\nGenerating {} triplets ...".format(self.num_triplets))
         num_training_iterations_per_process = self.num_triplets / self.triplet_batch_size
@@ -100,19 +110,40 @@ class TripletFaceDataset(Dataset):
                       - At least, two images needed for anchor and positive images in pos_class
                       - Negative image should have different class as anchor and positive images by definition
             """
-            
-            classes_per_batch = np.random.choice(classes, size=self.num_human_identities_per_batch, replace=False)
-            
+            classes_per_batch = []
+
+            id_dist = self.id_dist
+
+            df_classes_skin_1 = df_classes_skin[df_classes_skin['Skin'] == 1]
+            df_classes_skin_1 = list(df_classes_skin_1.sample(n=int(id_dist[0]/2),replace=False)['class'])
+            df_classes_skin_2 = df_classes_skin[df_classes_skin['Skin'] == 2]
+            df_classes_skin_2 = list(df_classes_skin_2.sample(n=round(id_dist[0]/2),replace=False)['class'])
+            df_classes_skin_3 = df_classes_skin[df_classes_skin['Skin'] == 3]
+            df_classes_skin_3 = list(df_classes_skin_3.sample(n=int(id_dist[1]/2),replace=False)['class'])
+            df_classes_skin_4 = df_classes_skin[df_classes_skin['Skin'] == 4]
+            df_classes_skin_4 = list(df_classes_skin_4.sample(n=round(id_dist[1]/2),replace=False)['class'])
+            df_classes_skin_5 = df_classes_skin[df_classes_skin['Skin'] == 5]
+            df_classes_skin_5 = list(df_classes_skin_5.sample(n=int(id_dist[2]/2),replace=False)['class'])
+            df_classes_skin_6 = df_classes_skin[df_classes_skin['Skin'] == 6]
+            df_classes_skin_6 = list(df_classes_skin_6.sample(n=round(id_dist[2]/2),replace=False)['class'])
+
+            classes_per_batch = [df_classes_skin_1,df_classes_skin_2,df_classes_skin_3,df_classes_skin_4,df_classes_skin_5,df_classes_skin_6]
+
+            classes_per_batch = [item for sublist in classes_per_batch for item in sublist]
+
             skin_per_batch = []
             
             for class_skin in classes_per_batch:
-                skin_per_batch.append(skin_classes[class_skin][0])
-            while Counter(skin_per_batch)[1] < 2 or Counter(skin_per_batch)[2] < 2 or Counter(skin_per_batch)[3] < 2 or Counter(skin_per_batch)[4] < 2 or Counter(skin_per_batch)[5] < 2 or Counter(skin_per_batch)[6] < 2:
-                classes_per_batch = np.random.choice(classes, size=self.num_human_identities_per_batch, replace=False)
-                skin_per_batch = []
-                for class_skin in classes_per_batch:
-                    skin_per_batch.append(skin_classes[class_skin][0])
-            #print('classes_per_batch',classes_per_batch,'skin_per_batch',Counter(skin_per_batch))
+                  skin_per_batch.append(skin_classes[class_skin][0])
+            print(skin_per_batch)
+            print(len(skin_per_batch))
+            # print(type(classes_per_batch))
+            # triplets.append(classes_per_batch)
+            # print(triplets)
+              #  or Counter(skin_per_batch)[2] < id_dist[1] or Counter(skin_per_batch)[3] < id_dist[2] or Counter(skin_per_batch)[4] < id_dist[3] or Counter(skin_per_batch)[5] < id_dist[4] or Counter(skin_per_batch)[6] < id_dist[5]:
+              #   classes_per_batch = np.random.choice(classes, size=self.num_human_identities_per_batch, replace=False)
+                
+            # print('classes_per_batch',classes_per_batch,'skin_per_batch',Counter(skin_per_batch))
             for triplet in range(self.triplet_batch_size):
 
                 pos_class = np.random.choice(classes_per_batch)
