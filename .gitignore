@@ -44,3 +44,10 @@ datasets/cc.zip
 datasets/cc_train.csv
 datasets/datasets.zip
 datasets/lfw.zip
+
+datasets/VAL_pairs_56.txt
+facenet-finetuning-batch-500-lr=0.00001-32ids-adaptive-1000-iter-100-epoch-nb_12171800.log
+facenet-finetuning-batch-500-lr=0.00001-32ids-adaptive-1000-iter-100-epoch_12171645.log
+model_training_checkpoints/
+run_training_4gpus-nb.sh
+run_training_4gpus.sh

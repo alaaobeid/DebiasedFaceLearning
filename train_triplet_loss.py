@@ -349,7 +349,7 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
 
             f.writelines("Epoch {}: Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
               "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
-              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f} \n fpr at tpr 0.95: {},  tpr at fpr 0.001: {} ".format(
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f} \n fpr at tpr 0.95: {},  tpr at fpr 0.001: {} | At FNR = FPR: FNR = {}, FPR = {}".format(
                     epoch,
                     np.mean(accuracy),
                     np.std(accuracy),
@@ -364,7 +364,9 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
                     np.std(tar),
                     np.mean(far),
                     fpr_95,
-                    tpr_1e3
+                    tpr_1e3,
+                    fnr[h],
+                    fpr[h]
                 ) + '\n'
             )
 
@@ -392,11 +394,10 @@ def forward_pass(imgs, model, batch_size):
     embeddings = model(imgs)
 
     # Split the embeddings into Anchor, Positive, and Negative embeddings
-    anc_embeddings = embeddings[:batch_size]
-    pos_embeddings = embeddings[batch_size: batch_size * 2]
-    neg_embeddings = embeddings[batch_size * 2:]
+    embeddings = embeddings
+    embeddings = embeddings.detach()
 
-    return anc_embeddings, pos_embeddings, neg_embeddings, model
+    return embeddings, model
 
 
 def main():
@@ -438,6 +439,13 @@ def main():
         processed_tensor = (image_tensor - 127.5) / 128.0
         return processed_tensor
     
+    def prewhiten(x):
+        mean = np.mean(x)
+        std = np.std(x)
+        std_adj = np.maximum(std, 1.0/np.sqrt(x.size))
+        y = np.multiply(np.subtract(x, mean), 1/std_adj)
+        return y
+    
     # data_transforms = transforms.Compose([
     #     transforms.Resize(size=image_size),
     #     transforms.RandomHorizontalFlip(),
@@ -453,8 +461,8 @@ def main():
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(degrees=5),
     np.float32,
-    transforms.ToTensor(),
-    fixed_image_standardization
+    transforms.Lambda(prewhiten),
+    transforms.ToTensor()
     ])
 
     lfw_transforms = transforms.Compose([
@@ -647,13 +655,26 @@ def main():
             # Concatenate the input images into one tensor because doing multiple forward passes would create
             #  weird GPU memory allocation behaviours later on during training which would cause GPU Out of Memory
             #  issues
-            all_imgs = torch.cat((anc_imgs, pos_imgs, neg_imgs))  # Must be a tuple of Torch Tensors
+            # all_imgs = torch.cat((anc_imgs, pos_imgs, neg_imgs))  # Must be a tuple of Torch Tensors
 
-            anc_embeddings, pos_embeddings, neg_embeddings, model = forward_pass(
-                imgs=all_imgs,
-                model=model,
-                batch_size=batch_size
-            )
+            anc_embeddings, model = forward_pass(
+                    imgs=anc_imgs,
+                    model=model,
+                    batch_size=batch_size
+                )
+
+            pos_embeddings, model = forward_pass(
+                    imgs=pos_imgs,
+                    model=model,
+                    batch_size=batch_size
+                )
+
+            neg_embeddings, model = forward_pass(
+                    imgs=neg_imgs,
+                    model=model,
+                    batch_size=batch_size
+                )
+            
 
             pos_dists = l2_distance.forward(anc_embeddings, pos_embeddings)
             neg_dists = l2_distance.forward(anc_embeddings, neg_embeddings)
@@ -673,9 +694,9 @@ def main():
                 all = (neg_dists - pos_dists < margin).cpu().numpy().flatten()
                 valid_triplets = np.where(all == 1)
 
-            anc_valid_embeddings = anc_embeddings[valid_triplets]
-            pos_valid_embeddings = pos_embeddings[valid_triplets]
-            neg_valid_embeddings = neg_embeddings[valid_triplets]
+            anc_valid_embeddings = anc_embeddings[valid_triplets].requires_grad_()
+            pos_valid_embeddings = pos_embeddings[valid_triplets].requires_grad_()
+            neg_valid_embeddings = neg_embeddings[valid_triplets].requires_grad_()
 
             # Calculate triplet loss
             triplet_loss = TripletLoss(margin=margin).forward(
