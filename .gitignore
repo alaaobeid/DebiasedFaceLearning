@@ -51,3 +51,5 @@ facenet-finetuning-batch-500-lr=0.00001-32ids-adaptive-1000-iter-100-epoch_12171
 model_training_checkpoints/
 run_training_4gpus-nb.sh
 run_training_4gpus.sh
+
+*.log

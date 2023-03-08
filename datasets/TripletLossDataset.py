@@ -115,17 +115,17 @@ class TripletFaceDataset(Dataset):
             id_dist = self.id_dist
 
             df_classes_skin_1 = df_classes_skin[df_classes_skin['Skin'] == 1]
-            df_classes_skin_1 = list(df_classes_skin_1.sample(n=int(id_dist[0]/2),replace=False)['class'])
+            df_classes_skin_1 = list(df_classes_skin_1.sample(n=int(id_dist[0]),replace=False)['class'])
             df_classes_skin_2 = df_classes_skin[df_classes_skin['Skin'] == 2]
-            df_classes_skin_2 = list(df_classes_skin_2.sample(n=round(id_dist[0]/2),replace=False)['class'])
+            df_classes_skin_2 = list(df_classes_skin_2.sample(n=round(id_dist[1]),replace=False)['class'])
             df_classes_skin_3 = df_classes_skin[df_classes_skin['Skin'] == 3]
-            df_classes_skin_3 = list(df_classes_skin_3.sample(n=int(id_dist[1]/2),replace=False)['class'])
+            df_classes_skin_3 = list(df_classes_skin_3.sample(n=int(id_dist[2]),replace=False)['class'])
             df_classes_skin_4 = df_classes_skin[df_classes_skin['Skin'] == 4]
-            df_classes_skin_4 = list(df_classes_skin_4.sample(n=round(id_dist[1]/2),replace=False)['class'])
+            df_classes_skin_4 = list(df_classes_skin_4.sample(n=round(id_dist[3]),replace=False)['class'])
             df_classes_skin_5 = df_classes_skin[df_classes_skin['Skin'] == 5]
-            df_classes_skin_5 = list(df_classes_skin_5.sample(n=int(id_dist[2]/2),replace=False)['class'])
+            df_classes_skin_5 = list(df_classes_skin_5.sample(n=int(id_dist[4]),replace=False)['class'])
             df_classes_skin_6 = df_classes_skin[df_classes_skin['Skin'] == 6]
-            df_classes_skin_6 = list(df_classes_skin_6.sample(n=round(id_dist[2]/2),replace=False)['class'])
+            df_classes_skin_6 = list(df_classes_skin_6.sample(n=round(id_dist[5]),replace=False)['class'])
 
             classes_per_batch = [df_classes_skin_1,df_classes_skin_2,df_classes_skin_3,df_classes_skin_4,df_classes_skin_5,df_classes_skin_6]
 

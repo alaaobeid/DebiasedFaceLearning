@@ -485,10 +485,43 @@ def main():
         shuffle=False
     )
     
-    cc_dataloader_12 = torch.utils.data.DataLoader(
+    cc_dataloader_1 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_12.txt',
+            pairs_path='datasets/VAL_pairs_1.txt',
+            transform=data_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    cc_dataloader_2 = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/VAL_pairs_2.txt',
+            transform=data_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    cc_dataloader_3 = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/VAL_pairs_3.txt',
+            transform=data_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    cc_dataloader_4 = torch.utils.data.DataLoader(
+        dataset=CCDataset(
+            dir=cc_dataroot,
+            pairs_path='datasets/VAL_pairs_4.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -496,10 +529,10 @@ def main():
         shuffle=False
     )
 
-    cc_dataloader_34 = torch.utils.data.DataLoader(
+    cc_dataloader_5 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_34.txt',
+            pairs_path='datasets/VAL_pairs_5.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -507,10 +540,10 @@ def main():
         shuffle=False
     )
 
-    cc_dataloader_56 = torch.utils.data.DataLoader(
+    cc_dataloader_6 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
-            pairs_path='datasets/VAL_pairs_56.txt',
+            pairs_path='datasets/VAL_pairs_6.txt',
             transform=data_transforms
         ),
         batch_size=lfw_batch_size,
@@ -524,11 +557,17 @@ def main():
                 idx = i
         return idx+1
 
-    logfname_12 = cc_dataloader_12.dataset.pairs_path[ID(cc_dataloader_12.dataset.pairs_path):][:-4]
+    logfname_1 = cc_dataloader_1.dataset.pairs_path[ID(cc_dataloader_1.dataset.pairs_path):][:-4]
+    
+    logfname_2 = cc_dataloader_2.dataset.pairs_path[ID(cc_dataloader_2.dataset.pairs_path):][:-4]
+    
+    logfname_3 = cc_dataloader_3.dataset.pairs_path[ID(cc_dataloader_3.dataset.pairs_path):][:-4]
+    
+    logfname_4 = cc_dataloader_4.dataset.pairs_path[ID(cc_dataloader_4.dataset.pairs_path):][:-4]
 
-    logfname_34 = cc_dataloader_34.dataset.pairs_path[ID(cc_dataloader_34.dataset.pairs_path):][:-4]
+    logfname_5 = cc_dataloader_5.dataset.pairs_path[ID(cc_dataloader_5.dataset.pairs_path):][:-4]
 
-    logfname_56 = cc_dataloader_56.dataset.pairs_path[ID(cc_dataloader_56.dataset.pairs_path):][:-4]
+    logfname_6 = cc_dataloader_6.dataset.pairs_path[ID(cc_dataloader_6.dataset.pairs_path):][:-4]
 
 
     # Instantiate model
@@ -541,38 +580,65 @@ def main():
     # Load model to GPU or multiple GPUs if available
     model, flag_train_multi_gpu = set_model_gpu_mode(model)
 
-    tpr_1e3_12, tpr_1e4_12, fpr_95_12, best_distances = validate_cc(
+    tpr_1e3_1, tpr_1e4_1, fpr_95_1, best_distances = validate_cc(
             model=model,
-            cc_dataloader=cc_dataloader_12,
+            cc_dataloader=cc_dataloader_1,
             model_architecture=model_architecture,
             epoch=0,
-            logfname=logfname_12,
+            logfname=logfname_1,
+            ts=ts
+        )
+    
+    tpr_1e3_2, tpr_1e4_2, fpr_95_2, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_2,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_2,
+            ts=ts
+        )
+    
+    tpr_1e3_3, tpr_1e4_3, fpr_95_3, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_3,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_3,
             ts=ts
         )
 
-    tpr_1e3_34, tpr_1e4_34, fpr_95_34, best_distances = validate_cc(
+    tpr_1e3_4, tpr_1e4_4, fpr_95_4, best_distances = validate_cc(
             model=model,
-            cc_dataloader=cc_dataloader_34,
+            cc_dataloader=cc_dataloader_4,
             model_architecture=model_architecture,
             epoch=0,
-            logfname=logfname_34,
+            logfname=logfname_4,
             ts=ts
         )
 
-    tpr_1e3_56, tpr_1e4_56, fpr_95_56, best_distances = validate_cc(
+    tpr_1e3_5, tpr_1e4_5, fpr_95_5, best_distances = validate_cc(
             model=model,
-            cc_dataloader=cc_dataloader_56,
+            cc_dataloader=cc_dataloader_5,
             model_architecture=model_architecture,
             epoch=0,
-            logfname=logfname_56,
+            logfname=logfname_5,
+            ts=ts
+        )
+    
+    tpr_1e3_6, tpr_1e4_6, fpr_95_6, best_distances = validate_cc(
+            model=model,
+            cc_dataloader=cc_dataloader_6,
+            model_architecture=model_architecture,
+            epoch=0,
+            logfname=logfname_6,
             ts=ts
         )
     
     #Calculate skin colour distributions based on fpr at 0.95 tpr values for first epoch
     
-    fpr_95_total = fpr_95_12 + fpr_95_34 + fpr_95_56
+    fpr_95_total = fpr_95_1 + fpr_95_2 + fpr_95_3 + fpr_95_4 + fpr_95_5 + fpr_95_6
 
-    id_dist = [round((fpr_95_12*32)/fpr_95_total), round((fpr_95_34*32)/fpr_95_total), round((fpr_95_56*32)/fpr_95_total)]
+    id_dist = [round((fpr_95_1*32)/fpr_95_total), round((fpr_95_2*32)/fpr_95_total), round((fpr_95_3*32)/fpr_95_total), round((fpr_95_4*32)/fpr_95_total), round((fpr_95_5*32)/fpr_95_total), round((fpr_95_6*32)/fpr_95_total)]
 
     # Set optimizer
     optimizer_model = set_optimizer(
