@@ -345,12 +345,13 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
 # with open('logs/cc_tpr_fpr_{}_{}.txt'.format(logfname, ts), 'a') as f:
 #             f.writelines(''.format()
 	
-        with open('logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts), 'a') as f:
+        with open('logs/cc_{}_log_triplet_{}.txt'.format(model_architecture,ts), 'a') as f:
 
-            f.writelines("Epoch {}: Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
+            f.writelines("Epoch {}: {}: Accuracy on CC: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
               "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
               "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f} \n fpr at tpr 0.95: {},  tpr at fpr 0.001: {} | At FNR = FPR: FNR = {}, FPR = {}".format(
                     epoch,
+                    logfname,
                     np.mean(accuracy),
                     np.std(accuracy),
                     np.mean(precision),
@@ -378,11 +379,11 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
             figure_name="plots/roc_plots/roc_cc_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
         )
         # Plot cc accuracies plot
-        plot_accuracy_lfw(
-            log_file='logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts),
-            epochs=epoch,
-            figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
-        )
+#         plot_accuracy_lfw(
+#             log_file='logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts),
+#             epochs=epoch,
+#             figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
+#         )
     except Exception as e:
         print(e)
 
