@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 from torch.nn.modules.distance import PairwiseDistance
 from datasets.LFWDataset import LFWDataset
 from datasets.CCDataset import CCDataset
+from datasets.IJBDataset import IJBDataset
 from losses.triplet_loss import TripletLoss
 from datasets.TripletLossDataset import TripletFaceDataset
 from validate_on_LFW import evaluate_lfw
@@ -389,6 +390,113 @@ def validate_cc(model, cc_dataloader, model_architecture, epoch, logfname, ts):
 
     return tpr_1e3,tpr_1e4,fpr_95,best_distances
 
+def validate_ijb(model, cc_dataloader, model_architecture, epoch, logfname, ts):
+    model.eval()
+    with torch.no_grad():
+        l2_distance = PairwiseDistance(p=2)
+        distances, labels = [], []
+
+        print("Testing on IJB! ...")
+        progress_bar = enumerate(tqdm(cc_dataloader))
+
+        for batch_index, (data_a, data_b, label) in progress_bar:
+            data_a = data_a.cuda()
+            data_b = data_b.cuda()
+
+            output_a, output_b = model(data_a), model(data_b)
+            distance = l2_distance.forward(output_a, output_b)  # Euclidean distance
+
+            distances.append(distance.cpu().detach().numpy())
+            labels.append(label.cpu().detach().numpy())
+
+        labels = np.array([sublabel for label in labels for sublabel in label])
+        distances = np.array([subdist for distance in distances for subdist in distance])
+
+        true_positive_rate, false_positive_rate, false_negative_rate, precision, recall, accuracy, roc_auc, best_distances, \
+        tar, far = evaluate_lfw(
+            distances=distances,
+            labels=labels,
+            far_target=1e-3
+        )
+        tpr_1e3 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-03))]
+        tpr_1e4 = true_positive_rate[np.argmin(np.abs(false_positive_rate - 1e-04))]
+        fpr_95 = false_positive_rate[np.argmin(np.abs(true_positive_rate - 0.95))]
+        fnr = false_negative_rate
+        fpr = false_positive_rate
+        sub = np.abs(fnr - fpr)
+        h = np.min(sub[np.nonzero(sub)])
+        h = np.where(sub == h)[0][0]
+	
+ 
+        # Print statistics and add to log
+        print("Accuracy on IJB: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
+              "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f}".format(
+                    np.mean(accuracy),
+                    np.std(accuracy),
+                    np.mean(precision),
+                    np.std(precision),
+                    np.mean(recall),
+                    np.std(recall),
+                    roc_auc,
+                    np.mean(best_distances),
+                    np.std(best_distances),
+                    np.mean(tar),
+                    np.std(tar),
+                    np.mean(far)
+                )
+        )
+	
+
+        print('fpr at tpr 0.95: {},  tpr at fpr 0.001: {}, tpr at fpr 0.0001: {}'.format(fpr_95,tpr_1e3,tpr_1e4))
+        print('At FNR = FPR: FNR = {}, FPR = {}'.format(fnr[h],fpr[h]))
+# with open('logs/cc_tpr_fpr_{}_{}.txt'.format(logfname, ts), 'a') as f:
+#             f.writelines(''.format()
+	
+        with open('logs/IJB_{}_log_triplet_{}.txt'.format(model_architecture,ts), 'a') as f:
+
+            f.writelines("Epoch {}: {}: Accuracy on IJB: {:.4f}+-{:.4f}\tPrecision {:.4f}+-{:.4f}\tRecall {:.4f}+-{:.4f}\t"
+              "ROC Area Under Curve: {:.4f}\tBest distance threshold: {:.2f}+-{:.2f}\t"
+              "TAR: {:.4f}+-{:.4f} @ FAR: {:.4f} \n fpr at tpr 0.95: {},  tpr at fpr 0.001: {} | At FNR = FPR: FNR = {}, FPR = {}".format(
+                    epoch,
+                    logfname,
+                    np.mean(accuracy),
+                    np.std(accuracy),
+                    np.mean(precision),
+                    np.std(precision),
+                    np.mean(recall),
+                    np.std(recall),
+                    roc_auc,
+                    np.mean(best_distances),
+                    np.std(best_distances),
+                    np.mean(tar),
+                    np.std(tar),
+                    np.mean(far),
+                    fpr_95,
+                    tpr_1e3,
+                    fnr[h],
+                    fpr[h]
+                ) + '\n'
+            )
+
+    try:
+        # Plot cc curve
+        plot_roc_lfw(
+            false_positive_rate=false_positive_rate,
+            true_positive_rate=true_positive_rate,
+            figure_name="plots/roc_plots/roc_IJB_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
+        )
+        # Plot cc accuracies plot
+#         plot_accuracy_lfw(
+#             log_file='logs/cc_{}_log_triplet_{}_{}.txt'.format(model_architecture,logfname,ts),
+#             epochs=epoch,
+#             figure_name="plots/accuracies_plots/cc_accuracies_{}_epoch_{}_triplet_{}_{}.png".format(model_architecture, epoch, logfname,ts)
+#         )
+    except Exception as e:
+        print(e)
+
+    return tpr_1e3,tpr_1e4,fpr_95,best_distances
+
 
 def forward_pass(imgs, model, batch_size):
     imgs = imgs.cuda()
@@ -465,6 +573,19 @@ def main():
     transforms.Lambda(prewhiten),
     transforms.ToTensor()
     ])
+    
+    cc_transforms = transforms.Compose([
+    np.float32,
+    transforms.Lambda(prewhiten),
+    transforms.ToTensor()
+    ])
+    
+    ijb_transforms = transforms.Compose([
+    transforms.Resize((160,160)),
+    np.float32,
+    transforms.Lambda(prewhiten),
+    transforms.ToTensor()
+    ])
 
     lfw_transforms = transforms.Compose([
         transforms.Resize(size=image_size),
@@ -486,11 +607,44 @@ def main():
         shuffle=False
     )
     
+    ijb_dataloader_12 = torch.utils.data.DataLoader(
+        dataset=IJBDataset(
+            dir='datasets/faster',
+            pairs_path='datasets/IJB_pairs_12.txt',
+            transform=ijb_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    ijb_dataloader_34 = torch.utils.data.DataLoader(
+        dataset=IJBDataset(
+            dir='datasets/faster',
+            pairs_path='datasets/IJB_pairs_34.txt',
+            transform=ijb_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
+    ijb_dataloader_56 = torch.utils.data.DataLoader(
+        dataset=IJBDataset(
+            dir='datasets/faster',
+            pairs_path='datasets/IJB_pairs_56.txt',
+            transform=ijb_transforms
+        ),
+        batch_size=lfw_batch_size,
+        num_workers=num_workers,
+        shuffle=False
+    )
+    
     cc_dataloader_1 = torch.utils.data.DataLoader(
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_1.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -501,7 +655,7 @@ def main():
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_2.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -512,7 +666,7 @@ def main():
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_3.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -523,7 +677,7 @@ def main():
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_4.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -534,7 +688,7 @@ def main():
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_5.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -545,7 +699,7 @@ def main():
         dataset=CCDataset(
             dir=cc_dataroot,
             pairs_path='datasets/VAL_pairs_6.txt',
-            transform=data_transforms
+            transform=cc_transforms
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -569,6 +723,10 @@ def main():
     logfname_5 = cc_dataloader_5.dataset.pairs_path[ID(cc_dataloader_5.dataset.pairs_path):][:-4]
 
     logfname_6 = cc_dataloader_6.dataset.pairs_path[ID(cc_dataloader_6.dataset.pairs_path):][:-4]
+    
+    logfname_12 = ijb_dataloader_12.dataset.pairs_path[ID(ijb_dataloader_12.dataset.pairs_path):][:-4]
+    logfname_34 = ijb_dataloader_34.dataset.pairs_path[ID(ijb_dataloader_34.dataset.pairs_path):][:-4]
+    logfname_56 = ijb_dataloader_56.dataset.pairs_path[ID(ijb_dataloader_56.dataset.pairs_path):][:-4]
 
 
     # Instantiate model
@@ -580,6 +738,73 @@ def main():
 
     # Load model to GPU or multiple GPUs if available
     model, flag_train_multi_gpu = set_model_gpu_mode(model)
+
+
+    optimizer_model = set_optimizer(
+        optimizer=optimizer,
+        model=model,
+        learning_rate=learning_rate
+    )
+
+    # Resume from a model checkpoint
+    if resume_path:
+        if os.path.isfile(resume_path):
+            print("Loading checkpoint {} ...".format(resume_path))
+            checkpoint = torch.load(resume_path)
+            start_epoch = checkpoint['epoch'] + 1
+            optimizer_model = optim.Adam(
+            params=model.parameters(),
+            lr=learning_rate,
+            betas=(0.9, 0.999),
+            eps=0.1,
+            amsgrad=False,
+            weight_decay=1e-5
+        )
+
+            # In order to load state dict for optimizers correctly, model has to be loaded to gpu first
+            if flag_train_multi_gpu:
+                model.module.load_state_dict(checkpoint['model_state_dict'])
+            else:
+                model.load_state_dict(checkpoint['model_state_dict'])
+            print("Checkpoint loaded: start epoch from checkpoint = {}".format(start_epoch))
+        else:
+            print("WARNING: No checkpoint found at {}!\nTraining from scratch.".format(resume_path))
+
+    if use_semihard_negatives:
+        print("Using Semi-Hard negative triplet selection!")
+    else:
+        print("Using Hard negative triplet selection!")
+
+    start_epoch = start_epoch
+
+    print("Training using triplet loss starting for {} epochs:\n".format(epochs - start_epoch))
+    
+    _, _, _, _ = validate_ijb(
+                model=model,
+                cc_dataloader=ijb_dataloader_12,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_12,
+                ts=ts
+            )
+        
+    _, _, _, _ = validate_ijb(
+                model=model,
+                cc_dataloader=ijb_dataloader_34,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_34,
+                ts=ts
+            )
+        
+    _, _, _, _ = validate_ijb(
+                model=model,
+                cc_dataloader=ijb_dataloader_56,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_56,
+                ts=ts
+            )
 
     tpr_1e3_1, tpr_1e4_1, fpr_95_1, best_distances = validate_cc(
             model=model,
@@ -640,46 +865,6 @@ def main():
     fpr_95_total = fpr_95_1 + fpr_95_2 + fpr_95_3 + fpr_95_4 + fpr_95_5 + fpr_95_6
 
     id_dist = [round((fpr_95_1*32)/fpr_95_total), round((fpr_95_2*32)/fpr_95_total), round((fpr_95_3*32)/fpr_95_total), round((fpr_95_4*32)/fpr_95_total), round((fpr_95_5*32)/fpr_95_total), round((fpr_95_6*32)/fpr_95_total)]
-
-    # Set optimizer
-    optimizer_model = set_optimizer(
-        optimizer=optimizer,
-        model=model,
-        learning_rate=learning_rate
-    )
-
-    # Resume from a model checkpoint
-    if resume_path:
-        if os.path.isfile(resume_path):
-            print("Loading checkpoint {} ...".format(resume_path))
-            checkpoint = torch.load(resume_path)
-            start_epoch = checkpoint['epoch'] + 1
-            optimizer_model = optim.Adam(
-            params=model.parameters(),
-            lr=learning_rate,
-            betas=(0.9, 0.999),
-            eps=0.1,
-            amsgrad=False,
-            weight_decay=1e-5
-        )
-
-            # In order to load state dict for optimizers correctly, model has to be loaded to gpu first
-            if flag_train_multi_gpu:
-                model.module.load_state_dict(checkpoint['model_state_dict'])
-            else:
-                model.load_state_dict(checkpoint['model_state_dict'])
-            print("Checkpoint loaded: start epoch from checkpoint = {}".format(start_epoch))
-        else:
-            print("WARNING: No checkpoint found at {}!\nTraining from scratch.".format(resume_path))
-
-    if use_semihard_negatives:
-        print("Using Semi-Hard negative triplet selection!")
-    else:
-        print("Using Hard negative triplet selection!")
-
-    start_epoch = start_epoch
-
-    print("Training using triplet loss starting for {} epochs:\n".format(epochs - start_epoch))
 
     for epoch in range(start_epoch, epochs):
         num_valid_training_triplets = 0
@@ -805,36 +990,90 @@ def main():
             epoch=epoch
         )
         
-        tpr_1e3_12, tpr_1e4_12, fpr_95_12, best_distances = validate_cc(
+        _, _, _, _ = validate_ijb(
                 model=model,
-                cc_dataloader=cc_dataloader_12,
+                cc_dataloader=ijb_dataloader_12,
                 model_architecture=model_architecture,
                 epoch=0,
                 logfname=logfname_12,
                 ts=ts
             )
-
-        tpr_1e3_34, tpr_1e4_34, fpr_95_34, best_distances = validate_cc(
+        
+        _, _, _, _ = validate_ijb(
                 model=model,
-                cc_dataloader=cc_dataloader_34,
+                cc_dataloader=ijb_dataloader_34,
                 model_architecture=model_architecture,
                 epoch=0,
                 logfname=logfname_34,
                 ts=ts
             )
-
-        tpr_1e3_56, tpr_1e4_56, fpr_95_56, best_distances = validate_cc(
+        
+        _, _, _, _ = validate_ijb(
                 model=model,
-                cc_dataloader=cc_dataloader_56,
+                cc_dataloader=ijb_dataloader_56,
                 model_architecture=model_architecture,
                 epoch=0,
                 logfname=logfname_56,
                 ts=ts
             )
+        
+        tpr_1e3_1, tpr_1e4_1, fpr_95_1, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_1,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_1,
+                ts=ts
+            )
+        
+        tpr_1e3_2, tpr_1e4_2, fpr_95_2, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_2,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_2,
+                ts=ts
+            )
+        
+        tpr_1e3_3, tpr_1e4_3, fpr_95_3, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_3,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_3,
+                ts=ts
+            )
+        
+        tpr_1e3_4, tpr_1e4_4, fpr_95_4, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_4,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_4,
+                ts=ts
+            )
 
-        fpr_95_total = fpr_95_12 + fpr_95_34 + fpr_95_56
+        tpr_1e3_5, tpr_1e4_5, fpr_95_5, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_5,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_5,
+                ts=ts
+            )
 
-        id_dist = [round((fpr_95_12*32)/fpr_95_total), round((fpr_95_34*32)/fpr_95_total), round((fpr_95_56*32)/fpr_95_total)]
+        tpr_1e3_6, tpr_1e4_6, fpr_95_6, best_distances = validate_cc(
+                model=model,
+                cc_dataloader=cc_dataloader_6,
+                model_architecture=model_architecture,
+                epoch=0,
+                logfname=logfname_6,
+                ts=ts
+            )
+
+        fpr_95_total = fpr_95_1 + fpr_95_2 + fpr_95_3 + fpr_95_4 + fpr_95_5 + fpr_95_6
+
+        id_dist = [round((fpr_95_1*32)/fpr_95_total), round((fpr_95_2*32)/fpr_95_total), round((fpr_95_3*32)/fpr_95_total), round((fpr_95_4*32)/fpr_95_total), round((fpr_95_5*32)/fpr_95_total), round((fpr_95_6*32)/fpr_95_total)]
 
         # Save model checkpoint
         state = {

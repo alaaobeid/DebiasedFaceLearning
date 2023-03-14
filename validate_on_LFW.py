@@ -18,7 +18,7 @@ from sklearn.model_selection import KFold
 from scipy import interpolate
 
 
-def evaluate_lfw(distances, labels, num_folds=10, far_target=1e-3):
+def evaluate_lfw(distances, labels, num_folds=2, far_target=1e-3):
     """Evaluates on the Labeled Faces in the Wild dataset using KFold cross validation based on the Euclidean
     distance as a metric.
     Note: "TAR@FAR=0.001" means the rate that faces are successfully accepted (True Acceptance Rate) (TP/(TP+FN)) when
@@ -66,7 +66,7 @@ def evaluate_lfw(distances, labels, num_folds=10, far_target=1e-3):
     return true_positive_rate, false_positive_rate, false_negative_rate, precision, recall, accuracy, roc_auc, best_distances, tar, far
 
 
-def calculate_roc_values(thresholds, distances, labels, num_folds=10):
+def calculate_roc_values(thresholds, distances, labels, num_folds=2):
     num_pairs = min(len(labels), len(distances))
     num_thresholds = len(thresholds)
     k_fold = KFold(n_splits=num_folds, shuffle=False)

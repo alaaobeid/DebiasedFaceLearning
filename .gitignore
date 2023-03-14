@@ -53,3 +53,17 @@ run_training_4gpus-nb.sh
 run_training_4gpus.sh
 
 *.log
+
+Image Prewhiten.ipynb
+Testing_IJB_C.ipynb
+datasets/IJB_TEST.zip
+datasets/IJB_pairs_12.txt
+datasets/IJB_pairs_34.txt
+datasets/IJB_pairs_56.txt
+datasets/faster/
+datasets/faster1/
+img
+*.jpg
+*.png
+*.tif
+*.pt
