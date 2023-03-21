@@ -22,7 +22,7 @@ from torch.utils.data import Dataset
 from collections import Counter
 
 class TripletFaceDataset(Dataset):
-    def __init__(self, root_dir, training_dataset_csv_path, num_triplets, epoch, num_human_identities_per_batch=32, triplet_batch_size=544, training_triplets_path=None, transform=None, id_dist=[]):
+    def __init__(self, root_dir, training_dataset_csv_path, num_triplets, epoch, num_human_identities_per_batch=32, triplet_batch_size=544, training_triplets_path=None, transform=None, id_dist=[], preproc=False):
         """
         Args:
 
@@ -51,6 +51,7 @@ class TripletFaceDataset(Dataset):
         self.epoch = epoch
         self.transform = transform
         self.id_dist = id_dist
+        self.preproc = preproc
         # Modified here to bypass having to use pandas.dataframe.loc for retrieving the class name
         #  and using dataframe.iloc for creating the face_classes dictionary
         df_dict = self.df.to_dict()
@@ -207,6 +208,8 @@ class TripletFaceDataset(Dataset):
             return path + '.png'
         elif os.path.exists(path + '.jpeg'):
             return path + '.jpeg'
+        elif os.path.exists(path + '.pt'):
+            return path + '.pt'
         else:
             raise RuntimeError('No file "{}" with extension .png or .jpg or .jpeg'.format(path))
 
@@ -219,12 +222,18 @@ class TripletFaceDataset(Dataset):
         neg_img = self.add_extension(os.path.join(self.root_dir, str(neg_name), str(neg_id)))
 
         # Modified to open as PIL image in the first place
-        anc_img = Image.open(anc_img)
-        pos_img = Image.open(pos_img)
-        neg_img = Image.open(neg_img)
+        if self.preproc == True:
+            anc_img = torch.load(anc_img)
+            pos_img = torch.load(pos_img)
+            neg_img = torch.load(neg_img)
+            
+        else:
+            anc_img = Image.open(anc_img)
+            pos_img = Image.open(pos_img)
+            neg_img = Image.open(neg_img)
 
-        pos_class = torch.from_numpy(np.array([pos_class]).astype('long'))
-        neg_class = torch.from_numpy(np.array([neg_class]).astype('long'))
+            pos_class = torch.from_numpy(np.array([pos_class]).astype('long'))
+            neg_class = torch.from_numpy(np.array([neg_class]).astype('long'))
 
         sample = {
             'anc_img': anc_img,
@@ -233,11 +242,11 @@ class TripletFaceDataset(Dataset):
             'pos_class': pos_class,
             'neg_class': neg_class
         }
-
-        if self.transform:
-            sample['anc_img'] = self.transform(sample['anc_img'])
-            sample['pos_img'] = self.transform(sample['pos_img'])
-            sample['neg_img'] = self.transform(sample['neg_img'])
+        if self.preproc == False:
+            if self.transform:
+                sample['anc_img'] = self.transform(sample['anc_img'])
+                sample['pos_img'] = self.transform(sample['pos_img'])
+                sample['neg_img'] = self.transform(sample['neg_img'])
 
         return sample
 

@@ -31,13 +31,15 @@ SOFTWARE."""
 import torchvision.datasets as datasets
 import os
 import numpy as np
-
+import torch
 
 class IJBDataset(datasets.ImageFolder):
-    def __init__(self, dir, pairs_path, transform=None):
+    def __init__(self, dir, pairs_path, transform=None, preproc=False):
 
-        super(IJBDataset, self).__init__(dir, transform)
+        super(IJBDataset, self).__init__(dir, transform,preproc)
 
+        self.preproc = preproc
+        
         self.pairs_path = pairs_path
 
         # LFW dir contains 2 folders: faces and lists
@@ -85,6 +87,8 @@ class IJBDataset(datasets.ImageFolder):
             return path + '.jpg'
         elif os.path.exists(path + '.png'):
             return path + '.png'
+        elif os.path.exists(path + '.pt'):
+            return path + '.pt'
         else:
             raise RuntimeError('No file "%s" with extension png or jpg.' % path)
 
@@ -105,7 +109,10 @@ class IJBDataset(datasets.ImageFolder):
             return self.transform(img)
 
         (path_1, path_2, issame) = self.validation_images[index]
-        img1, img2 = transform(path_1), transform(path_2)
+        if self.preproc == True:
+            img1, img2 = torch.load(path_1), torch.load(path_2)
+        else:
+            img1, img2 = transform(path_1), transform(path_2)
         return img1, img2, issame
 
     def __len__(self):

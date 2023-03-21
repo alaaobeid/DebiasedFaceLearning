@@ -65,5 +65,13 @@ datasets/faster1/
 img
 *.jpg
 *.png
+*.keep
 *.tif
 *.pt
+*.ipynb
+datasets/New folder/
+datasets/test.py
+preprocess.py
+run_preprocess.sh
+run_training_cpu-nb.sh
+test.py

@@ -533,7 +533,8 @@ def main():
     training_triplets_path = args.training_triplets_path
     flag_training_triplets_path = False
     ts = time.time()
-    start_epoch = 0
+    start_epoch = 0    
+
 
     if training_triplets_path is not None:
         flag_training_triplets_path = True  # Load triplets file for the first training epoch
@@ -609,20 +610,23 @@ def main():
     
     ijb_dataloader_12 = torch.utils.data.DataLoader(
         dataset=IJBDataset(
-            dir='datasets/faster',
+            dir='datasets/faster_preproc',
             pairs_path='datasets/IJB_pairs_12.txt',
-            transform=ijb_transforms
+            transform=None,
+            preproc=True
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
-        shuffle=False
+        shuffle=False,
+        pin_memory=False
     )
     
     ijb_dataloader_34 = torch.utils.data.DataLoader(
         dataset=IJBDataset(
-            dir='datasets/faster',
+            dir='datasets/faster_preproc',
             pairs_path='datasets/IJB_pairs_34.txt',
-            transform=ijb_transforms
+            transform=None,
+            preproc=True
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -631,9 +635,10 @@ def main():
     
     ijb_dataloader_56 = torch.utils.data.DataLoader(
         dataset=IJBDataset(
-            dir='datasets/faster',
+            dir='datasets/faster_preproc',
             pairs_path='datasets/IJB_pairs_56.txt',
-            transform=ijb_transforms
+            transform=None,
+            preproc=True
         ),
         batch_size=lfw_batch_size,
         num_workers=num_workers,
@@ -886,7 +891,8 @@ def main():
                 epoch=epoch,
                 training_triplets_path=_training_triplets_path,
                 transform=data_transforms,
-                id_dist=id_dist
+                id_dist=id_dist,
+                preproc=True
             ),
             batch_size=batch_size,
             num_workers=num_workers,
